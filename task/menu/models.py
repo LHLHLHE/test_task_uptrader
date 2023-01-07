@@ -43,8 +43,4 @@ class MenuItem(models.Model):
         verbose_name_plural = 'Элементы меню'
 
     def __str__(self):
-        return (
-            f'Элемент: "{self.name}", '
-            f'Родитель: {self.parent}, '
-            f'Меню: "{self.menu.name}"'
-        )
+        return f'Элемент: "{self.name}"'

@@ -7,28 +7,48 @@ register = template.Library()
 
 @register.inclusion_tag('menu/menu.html', takes_context=True)
 def draw_menu(context, menu_name):
-    items = MenuItem.objects.filter(menu__name=menu_name)
-    root_items = [item for item in items.filter(parent=None).values()]
-    selected_item_id = int(context['request'].GET.get(menu_name))
+    try:
+        items = MenuItem.objects.filter(menu__name=menu_name)
+        root_items = [item for item in items.filter(parent=None).values()]
+        selected_item_id = int(context['request'].GET.get(menu_name))
+        selected_item_ids = get_selected_item_ids(
+            items.get(id=selected_item_id),
+            root_items,
+            selected_item_id
+        )
 
-    for root_item in root_items:
-        if root_item.get('id') == selected_item_id:
-            root_item['child_items'] = [
-                item for item in items.filter(parent_id=root_item).values()
+        for root_item in root_items:
+            if root_item.get('id') in selected_item_ids:
+                root_item['child_items'] = [
+                    item for item in
+                    items.filter(parent_id=root_item.get('id')).values()
+                ]
+        result = {'items': root_items}
+
+    except Exception:
+        result = {
+            'items': [
+                item for item in MenuItem.objects.filter(
+                    menu__name=menu_name,
+                    parent=None
+                ).values()
             ]
+        }
 
-    result_dict = {
-        'items': root_items,
-        'menu': menu_name,
-        'other_querystring': get_querystring(context, menu_name)
-    }
-    return result_dict
+    finally:
+        result['menu'] = menu_name
+
+    return result
 
 
-def get_querystring(context, menu):
-    querystring_args = []
-    for key in context['request'].GET:
-        if key != menu:
-            querystring_args.append(key + '=' + context['request'].GET[key])
-    querystring = ('&').join(querystring_args)
-    return querystring
+def get_selected_item_ids(parent, root_items, selected_item_id):
+    selected_item_ids = []
+
+    while parent:
+        selected_item_ids.append(parent.id)
+        parent = parent.parent
+    if not selected_item_ids:
+        for root_item in root_items:
+            if root_item['id'] == selected_item_id:
+                selected_item_ids.append(selected_item_id)
+    return selected_item_ids
